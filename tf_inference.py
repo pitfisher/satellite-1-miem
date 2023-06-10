@@ -2,6 +2,14 @@ import tarfile
 import urllib.request
 import os
 import time 
+import sys
+from pathlib import Path
+
+import pandas as pd
+
+TEST_IMAGES_PATH, SAVE_PATH = sys.argv[1:]
+
+MODEL_PATH = "./data/models/frozen_drone_5"
 
 DATA_DIR = os.path.join(os.getcwd(), 'data')
 MODELS_DIR = os.path.join(DATA_DIR, 'models')
@@ -11,15 +19,17 @@ MODELS_DIR = os.path.join(DATA_DIR, 'models')
 # http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d1_coco17_tpu-32.tar.gz
 # http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d2_coco17_tpu-32.tar.gz
 # http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v1_fpn_640x640_coco17_tpu-8.tar.gz
-# ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8
+# http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d7_coco17_tpu-32.tar.gz
+# http://download.tensorflow.org/models/object_detection/tf2/20200711/efficientdet_d3_coco17_tpu-32.tar.gz
+# efficientdet_d3_coco17_tpu-32
 # Download and extract model
 MODEL_DATE = '20200711'
-MODEL_NAME = 'ssd_mobilenet_v2_fpnlite_640x640_coco17_tpu-8'
+MODEL_NAME = 'frozen_drone_5'
 MODEL_TAR_FILENAME = MODEL_NAME + '.tar.gz'
 MODELS_DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/tf2/'
 MODEL_DOWNLOAD_LINK = MODELS_DOWNLOAD_BASE + MODEL_DATE + '/' + MODEL_TAR_FILENAME
 PATH_TO_MODEL_TAR = os.path.join(MODELS_DIR, MODEL_TAR_FILENAME)
-PATH_TO_CKPT = os.path.join(MODELS_DIR, os.path.join(MODEL_NAME, 'checkpoint\\'))
+PATH_TO_CKPT = os.path.join(MODELS_DIR, os.path.join(MODEL_NAME, 'checkpoint'))
 PATH_TO_CFG = os.path.join(MODELS_DIR, os.path.join(MODEL_NAME, 'pipeline.config'))
 print(PATH_TO_CKPT)
 if not os.path.exists(PATH_TO_CKPT):
@@ -76,7 +86,45 @@ def detect_fn(image):
     detections = detection_model.postprocess(prediction_dict, shapes)
 
     return detections, prediction_dict, tf.reshape(shapes, [-1])
-    
+
+def convert_tf_detection_to_yolo(image_id, box, score):
+    result = {
+        'image_id': image_id,
+        'xc': round((box[1] + box[3])/2, 4), # center of bbox x coordinate
+        'yc': round((box[0] + box[2])/2, 4), # center of bbox y coordinate
+        'w': round(box[3] - box[1], 4), # width of bbox
+        'h': round(box[2] - box[0], 4), # height of bbox
+        'label': 0, # COCO class label
+        'score': round(score, 4) # class probability score
+    }
+    return result
+
+def generate_solution(image_name):
+    results = []
+    image_id = image_name.name[:-len(image_name.suffix)]
+    logger.debug(f"processing image: {str(image_id)}")
+    image_np = cv2.imread(str(image_name))
+    input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)    
+    detections, predictions_dict, shapes = detect_fn(input_tensor)
+
+    for box, label, score in zip(detections['detection_boxes'][0].numpy(), 
+                             detections['detection_classes'][0].numpy(), 
+                             detections['detection_scores'][0].numpy()):
+        if score > 0.3 and label == 0:
+            print("box: ", box, ", label: ", label, ", score: ", score)
+            results.append(convert_tf_detection_to_yolo(image_id, box, score))
+    return results
+
+def create_solution():
+    logger.debug("creating solution")
+    results = []
+    for f in Path(TEST_IMAGES_PATH).glob('*.JPG'):
+        results += generate_solution(f)
+    print("results: ", results)
+
+    test_df = pd.DataFrame(results, columns=['image_id', 'xc', 'yc', 'w', 'h', 'label', 'score'])
+    test_df.to_csv(SAVE_PATH, index=False)
+
 category_index = label_map_util.create_category_index_from_labelmap(PATH_TO_LABELS,
                                                                     use_display_name=True)
 print("Beginning inference")
@@ -91,12 +139,7 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-print("opening the camera")
-#cap = cv2.VideoCapture("/home/petr/Videos/14.10/test.h264")
-# cap = cv2.VideoCapture(1)
-# cap = cv2.VideoCapture("example.mkv")
-
-print("initializing the variables")
+logger.debug("initializing the variables")
 # Variables to calculate FPS
 start_time = time.time()
 frame_counter, fps = 0, 0
@@ -107,11 +150,11 @@ logger.debug("starting frame capture loop")
 # while True:
 # Read frame from camera
 # ret, image_np = cap.read()
-image_np = cv2.imread(r"man_cafe.jpg")
+# image_np = cv2.imread(r"man_cafe.jpg")
 
 frame_counter += 1
 # Expand dimensions since the model expects images to have shape: [1, None, None, 3]
-image_np_expanded = np.expand_dims(image_np, axis=0)
+# image_np_expanded = np.expand_dims(image_np, axis=0)
 
 # Things to try:
 # Flip horizontally
@@ -122,8 +165,11 @@ image_np_expanded = np.expand_dims(image_np, axis=0)
 #     np.mean(image_np, 2, keepdims=True), (1, 1, 3)).astype(np.uint8)
 logger.debug("detecting")
 detection_start_time = time.perf_counter()
-input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)
-detections, predictions_dict, shapes = detect_fn(input_tensor)
+# input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)
+# detections, predictions_dict, shapes = detect_fn(input_tensor)
+create_solution()
+# logger.debug("predictions:", predictions_dict)
+# logger.debug("shapes:", shapes)
 logger.debug("detecting done")
 if frame_counter > 1:
     detection_time = time.perf_counter() - detection_start_time
@@ -132,20 +178,20 @@ if frame_counter > 1:
     logger.info("Last frame detection time: {:.3f}".format(detection_time))
     logger.info("Average frame detection time: {:.3f}".format(detection_time_avg))
 
-label_id_offset = 1
-image_np_with_detections = image_np.copy()
+# label_id_offset = 1
+# image_np_with_detections = image_np.copy()
 
-logger.debug("visualizing")
-viz_utils.visualize_boxes_and_labels_on_image_array(
-        image_np_with_detections,
-        detections['detection_boxes'][0].numpy(),
-        (detections['detection_classes'][0].numpy() + label_id_offset).astype(int),
-        detections['detection_scores'][0].numpy(),
-        category_index,
-        use_normalized_coordinates=True,
-        max_boxes_to_draw=200,
-        min_score_thresh=.30,
-        agnostic_mode=False)
+# logger.debug("visualizing")
+# viz_utils.visualize_boxes_and_labels_on_image_array(
+#         image_np_with_detections,
+#         detections['detection_boxes'][0].numpy(),
+#         (detections['detection_classes'][0].numpy() + label_id_offset).astype(int),
+#         detections['detection_scores'][0].numpy(),
+#         category_index,
+#         use_normalized_coordinates=True,
+#         max_boxes_to_draw=200,
+#         min_score_thresh=.30,
+#         agnostic_mode=False)
 
 if frame_counter % fps_avg_frame_count == 0:
     end_time = time.time()
@@ -157,7 +203,7 @@ logger.debug("Frames total = {:.1f}".format(frame_counter))
 
 # Display output
 # cv2.imshow('object detection', cv2.resize(image_np_with_detections, (800, 600)))
-cv2.imwrite('detection_results.jpg', image_np_with_detections)
+# cv2.imwrite('detection_results.jpg', image_np_with_detections)
 # if cv2.waitKey(0) & 0xFF == ord('q'):
 #     cv2.destroyAllWindows()
     # break
