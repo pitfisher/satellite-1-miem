@@ -1,0 +1,4 @@
+*.zip
+results.csv
+metadata.json
+/simple_solution
