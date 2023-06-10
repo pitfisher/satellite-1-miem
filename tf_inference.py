@@ -127,6 +127,10 @@ def create_solution():
 
 category_index = label_map_util.create_category_index_from_labelmap(PATH_TO_LABELS,
                                                                     use_display_name=True)
+
+tf_device_list = tf.config.list_physical_devices('GPU')
+print(("GPU detected by TF, device info: " + str(tf_device_list)) if tf_device_list else "No GPU detected by TF")
+
 print("Beginning inference")
 print("imports")
 import cv2
