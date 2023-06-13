@@ -13,38 +13,39 @@ onlyfiles = [join(TEST_IMAGES_PATH, f) for f in listdir(TEST_IMAGES_PATH)]
 
 coordinates = pd.DataFrame({'image': [], 'output': [], 'score': []})
 
-def convert_detection_to_yolo(image_id, yolov8_result):
-    original_width, original_height = yolov8_result.orig_shape
-    x, y, w, h = yolov8_result.boxes.xywhn[0]
-    score = result.boxes.conf[0]
+def convert_detection_to_yolo(image_id, xywhn, score):
+    x, y, w, h = xywhn
     result = {
         'image_id': image_id,
-        'xc': round(x, 4), # center of bbox x coordinate
-        'yc': round(y, 4), # center of bbox y coordinate
-        'w': round(w, 4), # width of bbox
-        'h': round(h, 4), # height of bbox
+        'xc': round(float(x), 4), # center of bbox x coordinate
+        'yc': round(float(y), 4), # center of bbox y coordinate
+        'w': round(float(w), 4), # width of bbox
+        'h': round(float(h), 4), # height of bbox
         'label': 0, # COCO class label
-        'score': round(score, 4) # class probability score
+        'score': round(float(score), 4) # class probability score
     }
     return result
 
-res = model.predict(
+detections = model.predict(
    source=onlyfiles,
    conf=0.25
 )
-# print("res: ", res)
-for result in res:
-    print("result.boxes: ", result.boxes)
-    image_id = Path(result.path).stem
-    output = []
-    scores = []
-    coords = result.boxes.xyxy
-    sc = result.boxes.conf
-    for i, coor in enumerate(coords):
-        print("image_id", image_id)
-        output.append(['person', int(coor[0]), int(coor[1]), int(coor[2]), int(coor[3])])
-        scores.append(sc[i].item())
+def generate_solution(detections):
+    # print("res: ", res)
+    results = []
+    for detection in detections:
+        # print("result.boxes: ", result.boxes)
+        image_id = Path(detection.path).stem
+        image_results = []
+        bboxes = detection.boxes.xywhn
+        scores = detection.boxes.conf
+        for bbox, score in zip(bboxes, scores):
+            image_results.append(convert_detection_to_yolo(image_id, bbox, score))
+        print("image results: ", image_results)
+        results+=image_results
+    return results
     
-    coordinates.loc[len(coordinates)] = [result.path, output, scores]
-
-print(coordinates)
+results = generate_solution(detections)
+print(results)
+test_df = pd.DataFrame(results, columns=['image_id', 'xc', 'yc', 'w', 'h', 'label', 'score'])
+test_df.to_csv(SAVE_PATH, index=False)

@@ -1,4 +1,4 @@
 {
-    "image": "pitfisher/emergency_search_miem:latest",
-    "entry_point": "python3 tf_inference.py"
+    "image": "pitfisher/emergency_search_miem_yolo:latest",
+    "entry_point": "python yolo_inference.py"
 }
