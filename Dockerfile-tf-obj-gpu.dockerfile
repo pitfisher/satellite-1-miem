@@ -24,7 +24,7 @@ COPY data/man_cafe.jpg /data/man_cafe.JPG
 COPY data/test_data /data/test_data
 COPY data/models/frozen_drone_5 /data/data/models/frozen_drone_5
 WORKDIR /data/
-CMD python3 tf_inference.py ./test_data/images/ ./recognition_results.csv
+CMD python tf_inference.py ./test_data/images/ ./recognition_results.csv
 # RUN jupyter notebook --generate-config --allow-root
 # RUN echo "c.NotebookApp.password = u'sha1:6a3f528eec40:6e896b6e4828f525a6e20e5411cd1c8075d68619'" >> /root/.jupyter/jupyter_notebook_config.py
 # EXPOSE 8888
