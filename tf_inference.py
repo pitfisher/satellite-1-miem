@@ -63,6 +63,7 @@ from object_detection.builders import model_builder
 
 tf.get_logger().setLevel('ERROR')           # Suppress TensorFlow logging (2)
 
+images_loading_time = 0
 # Enable GPU dynamic memory allocation
 # gpus = tf.config.experimental.list_physical_devices('GPU')
 # for gpu in gpus:
@@ -100,11 +101,18 @@ def convert_tf_detection_to_yolo(image_id, box, score):
     return result
 
 def generate_solution(image_name):
+    global images_loading_time
     results = []
     image_id = image_name.name[:-len(image_name.suffix)]
     logger.debug(f"processing image: {str(image_id)}")
-    image_np = cv2.imread(str(image_name))
-    input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)    
+    image_loading_start_time = time.perf_counter()
+    # image_np = cv2.imread(str(image_name))
+    img = tf.io.read_file(str(image_name))
+    image_np = tf.io.decode_jpeg(img, channels=3)
+    image_loading_time_elapsed = time.perf_counter() - image_loading_start_time
+    logger.debug("image loaded, time elapsed: {:.3f}".format(image_loading_time_elapsed))
+    images_loading_time += image_loading_time_elapsed
+    input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32) 
     detections, predictions_dict, shapes = detect_fn(input_tensor)
 
     for box, label, score in zip(detections['detection_boxes'][0].numpy(), 
@@ -127,10 +135,7 @@ def create_solution():
 
 category_index = label_map_util.create_category_index_from_labelmap(PATH_TO_LABELS,
                                                                     use_display_name=True)
-
-tf_device_list = tf.config.list_physical_devices('GPU')
-print(("GPU detected by TF, device info: " + str(tf_device_list)) if tf_device_list else "No GPU detected by TF")
-
+print(tf.config.list_physical_devices('GPU'))
 print("Beginning inference")
 print("imports")
 import cv2
@@ -204,7 +209,7 @@ if frame_counter % fps_avg_frame_count == 0:
     # logger.debug("FPS calculated, time: {:.3f}".format(time.perf_counter() - perf_start_time))
 logger.info("FPS = {:.1f}".format(fps))
 logger.debug("Frames total = {:.1f}".format(frame_counter))
-
+logger.debug("Image loading total time: {:.3f}".format(images_loading_time))
 # Display output
 # cv2.imshow('object detection', cv2.resize(image_np_with_detections, (800, 600)))
 # cv2.imwrite('detection_results.jpg', image_np_with_detections)
