@@ -8,9 +8,10 @@ RUN pip install --upgrade pip
 RUN pip install dill
 RUN mkdir -p /data/data
 RUN mkdir -p /data/data/models
+COPY ultralytics /data/ultralytics
 COPY yolo_inference.py /data/yolo_inference.py
 COPY data/man_cafe.jpg /data/data/man_cafe.JPG
 COPY data/test_data /data/data/test_data
 COPY data/models/yolo-best-1206.pt /data/data/models/yolo-best-1206.pt
 WORKDIR /data/
-CMD python3 yolo_inference.py ./data/test_data/images/ ./recognition_results.csv
+CMD python yolo_inference.py ./data/test_data/images/ ./recognition_results.csv
