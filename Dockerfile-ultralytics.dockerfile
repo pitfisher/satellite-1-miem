@@ -8,6 +8,7 @@ RUN pip install --upgrade pip
 RUN pip install dill
 RUN mkdir -p /data/data
 RUN mkdir -p /data/data/models
+ENV PYTHONDONTWRITEBYTECODE 1
 COPY ultralytics /data/ultralytics
 COPY yolo_inference.py /data/yolo_inference.py
 COPY data/man_cafe.jpg /data/data/man_cafe.JPG

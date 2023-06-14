@@ -17,6 +17,7 @@ RUN cp object_detection/packages/tf2/setup.py .
 RUN python3 -m pip install .
 RUN python3 -m pip install protobuf==3.20.1
 # CMD python3 object_detection/builders/model_builder_tf2_test.py
+ENV PYTHONDONTWRITEBYTECODE 1
 RUN mkdir -p /data/data
 RUN mkdir -p /data/data/models
 COPY tf_inference.py /data/tf_inference.py
@@ -24,7 +25,7 @@ COPY data/man_cafe.jpg /data/man_cafe.JPG
 COPY data/test_data /data/test_data
 COPY data/models/frozen_drone_5 /data/data/models/frozen_drone_5
 WORKDIR /data/
-CMD python tf_inference.py ./test_data/images/ ./recognition_results.csv
+CMD python tf_inference.py ./data/test_data/images/ ./recognition_results.csv
 # RUN jupyter notebook --generate-config --allow-root
 # RUN echo "c.NotebookApp.password = u'sha1:6a3f528eec40:6e896b6e4828f525a6e20e5411cd1c8075d68619'" >> /root/.jupyter/jupyter_notebook_config.py
 # EXPOSE 8888
