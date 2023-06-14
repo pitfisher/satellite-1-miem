@@ -1,9 +1,13 @@
-from ultralytics import YOLO
-import pandas as pd
+from pathlib import Path
+import os
+os.environ["TMPDIR"] = str(Path().absolute())
+print(os.environ["TMPDIR"])
+
 from os import listdir
 from os.path import isfile, join
+from ultralytics import YOLO
+import pandas as pd
 import sys
-from pathlib import Path
 
 TEST_IMAGES_PATH, SAVE_PATH = sys.argv[1:]
 
