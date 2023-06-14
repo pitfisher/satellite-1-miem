@@ -1,0 +1,7 @@
+datasets_dir: /temporary_workdir/datasets
+weights_dir: /temporary_workdir/weights
+runs_dir: /temporary_workdir/runs
+uuid: af86e989f891cbd0cd78de981596cc553f47f4a708b5ec210405ae2024cb9aec
+sync: true
+api_key: ''
+settings_version: 0.0.3
