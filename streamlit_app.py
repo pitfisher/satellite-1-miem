@@ -15,15 +15,19 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from PIL import Image
 import matplotlib.pyplot as plt
 
+# path to FasterRCNN model
 big_model_path = "/home/petr/Documents/big_model.ckpt"
+# path to SSD MobileNetv3 model
 small_model_path = "/home/petr/Documents/small_model.ckpt"
 
 detected_cutouts = []
+# stub black images
 black_image = np.zeros((240,240))
 detected_cutouts.append(black_image)
 detected_cutouts.append(black_image)
 detected_cutouts.append(black_image)
 
+# prepare uploaded image for inference
 def prepare_image(image_file):
     transform = torchvision.transforms.ToTensor()
     image = transform(image_file)
@@ -32,6 +36,7 @@ def prepare_image(image_file):
     # image = []
     # image.append(original_image)
 
+# load object detection models from disk
 def init_models(big_model_path, small_model_path):
     big_model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=False, pretrained_backbone=False)
     in_features = big_model.roi_heads.box_predictor.cls_score.in_features
@@ -53,6 +58,7 @@ def init_models(big_model_path, small_model_path):
     small_model = small_model.to("cuda")
     return big_model, small_model
 
+# perform object detection on user-loaded image
 def inference(big_model, small_model, image):
     test_preds = []
     cutout_images = []
@@ -132,20 +138,7 @@ def inference(big_model, small_model, image):
                 results.append(result)
     return results, cutout_images, big_bboxes
 
-def brighten_image(image, amount):
-    img_bright = cv2.convertScaleAbs(image, beta=amount)
-    return img_bright
-
-
-def blur_image(image, amount):
-    blur_img = cv2.GaussianBlur(image, (11, 11), amount)
-    return blur_img
-
-
-def enhance_details(img):
-    hdr = cv2.detailEnhance(img, sigma_s=12, sigma_r=0.15)
-    return hdr
-
+# preprocess big bbox regions to look better when shown
 def preprocess_cutout_images(images):
     processed_cutout_images = []
     for image in images:
@@ -154,6 +147,7 @@ def preprocess_cutout_images(images):
         processed_cutout_images.append(image)
     return processed_cutout_images
 
+# draw big and small bboxes on original image
 def draw_bboxes(image, results, big_bboxes):
     for result, big_bbox in zip(results, big_bboxes):
         xmin = result["xc"] - result["w"] / 2
